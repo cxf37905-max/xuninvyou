@@ -48,13 +48,15 @@ export function TryOnView() {
     }, 1500);
 
     try {
-      const formData = new FormData();
-      formData.append('personImage', tryOn.personImage);
-      formData.append('clothingImage', tryOn.clothingImage);
-
       const response = await fetch('/api/try-on', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          personImage: tryOn.personPreviewUrl,
+          clothingImage: tryOn.clothingPreviewUrl,
+        }),
       });
 
       clearInterval(progressInterval);

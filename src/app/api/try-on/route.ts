@@ -1,47 +1,144 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/images/generations';
+const ARK_MODEL = 'doubao-seedream-5-0-260128';
+
+interface ArkErrorResponse {
+  error?: {
+    code?: string;
+    message?: string;
+    type?: string;
+  };
+}
+
+interface TryOnRequestBody {
+  personImage: string;
+  clothingImage: string;
+}
+
+class ApiError extends Error {
+  constructor(
+    public statusCode: number,
+    message: string,
+    public code?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+async function handleArkError(response: Response): Promise<never> {
+  const status = response.status;
+  let message = '请求失败，请稍后重试';
+
+  try {
+    const data: ArkErrorResponse = await response.json();
+    message = data.error?.message || message;
+  } catch {
+    message = '请求失败，请稍后重试';
+  }
+
+  switch (status) {
+    case 401:
+      throw new ApiError(401, 'API Key 无效或已过期，请检查配置', 'AUTH_ERROR');
+    case 403:
+      throw new ApiError(403, '无权访问该资源', 'FORBIDDEN');
+    case 429:
+      throw new ApiError(429, '请求过于频繁，请稍后再试', 'RATE_LIMIT');
+    case 500:
+    case 501:
+    case 502:
+    case 503:
+    case 504:
+      throw new ApiError(status, '服务端异常，请稍后重试', 'SERVER_ERROR');
+    default:
+      throw new ApiError(status, message, 'UNKNOWN_ERROR');
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const personImage = formData.get('personImage');
-    const clothingImage = formData.get('clothingImage');
+    const apiKey = process.env.ARK_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: '服务配置错误，请联系管理员', code: 'CONFIG_ERROR' },
+        { status: 500 }
+      );
+    }
+
+    const body: TryOnRequestBody = await request.json();
+    const { personImage, clothingImage } = body;
 
     if (!personImage || !clothingImage) {
       return NextResponse.json(
-        { error: 'Both person image and clothing image are required' },
+        { error: '请上传人物图片和服装图片', code: 'MISSING_IMAGE' },
         { status: 400 }
       );
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
 
-    const categories = ['top', 'bottom', 'dress'] as const;
-    const randomCategory = categories[Math.floor(Math.random() * categories.length)];
+    const apiResponse = await fetch(ARK_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': apiKey,
+      },
+      body: JSON.stringify({
+        model: ARK_MODEL,
+        prompt: '将图1的服装换为图2的服装',
+        image: [personImage, clothingImage],
+        sequential_image_generation: 'disabled',
+        response_format: 'url',
+        size: '2K',
+        stream: false,
+        watermark: false,
+      }),
+      signal: controller.signal,
+    });
 
-    const mockResultImage = `data:image/svg+xml,${encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="400" height="500" viewBox="0 0 400 500">
-        <rect fill="#f3f4f6" width="400" height="500"/>
-        <text x="50%" y="40%" text-anchor="middle" font-family="system-ui" font-size="20" fill="#6b7280">
-          Try-On Preview
-        </text>
-        <text x="50%" y="50%" text-anchor="middle" font-family="system-ui" font-size="14" fill="#9ca3af">
-          Category: ${randomCategory}
-        </text>
-        <text x="50%" y="60%" text-anchor="middle" font-family="system-ui" font-size="12" fill="#9ca3af">
-          (Mock Result - Replace with AI API)
-        </text>
-      </svg>
-    `)}`;
+    clearTimeout(timeoutId);
+
+    if (!apiResponse.ok) {
+      await handleArkError(apiResponse);
+    }
+
+    const data = await apiResponse.json();
+
+    if (!data.data || !data.data[0]?.url) {
+      return NextResponse.json(
+        { error: '生成失败，未返回有效结果', code: 'INVALID_RESPONSE' },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
-      resultImage: mockResultImage,
-      generationId: `gen_${Date.now()}`,
-      category: randomCategory,
+      resultImage: data.data[0].url,
+      generationId: `ark_${Date.now()}`,
+      category: 'top',
+      usage: data.usage,
     });
   } catch (error) {
-    console.error('Try-on error:', error);
+    console.error('Try-on API error:', error);
+
+    if (error instanceof ApiError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.statusCode }
+      );
+    }
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      return NextResponse.json(
+        { error: '请求超时，请检查网络后重试', code: 'TIMEOUT' },
+        { status: 408 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Failed to generate try-on image' },
+      { error: '生成失败，请稍后重试', code: 'INTERNAL_ERROR' },
       { status: 500 }
     );
   }
