@@ -16,7 +16,7 @@ export function HeroSection() {
             </div>
             
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-              Try Clothes Before You Buy
+              Try Clothes Before You Buyy
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-lg">
