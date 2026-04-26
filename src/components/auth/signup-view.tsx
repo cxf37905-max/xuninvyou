@@ -3,31 +3,59 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useApp } from '@/contexts/AppContext';
 import { Sparkles } from 'lucide-react';
 
 export function SignupView() {
   const router = useRouter();
-  const { setUserType, setUser } = useApp();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
 
-    setTimeout(() => {
-      setUserType('LOGGED_IN');
-      setUser({ email, name });
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Registration failed');
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Registration succeeded but login failed. Please try logging in.');
+        setIsLoading(false);
+        return;
+      }
+
       router.push('/try-on');
+      router.refresh();
+    } catch (err) {
+      setError('An error occurred. Please try again.');
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -45,6 +73,12 @@ export function SignupView() {
         
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {error && (
+              <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
+                {error}
+              </div>
+            )}
+            
             <div className="space-y-2">
               <label className="text-sm font-medium">Name</label>
               <Input
@@ -75,6 +109,7 @@ export function SignupView() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={6}
               />
             </div>
             
