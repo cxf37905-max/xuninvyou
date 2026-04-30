@@ -9,7 +9,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useApp } from '@/contexts/AppContext';
 import { Loader2, Sparkles, Info } from 'lucide-react';
 
-export function TryOnView() {
+interface SubscriptionData {
+  status: 'FREE_TRIAL' | 'TRIALS_EXHAUSTED' | 'SUBSCRIBED';
+  plan: 'free' | 'monthly' | 'yearly';
+  remainingTrials: number;
+}
+
+interface TryOnViewProps {
+  subscription: SubscriptionData;
+}
+
+export function TryOnView({ subscription }: TryOnViewProps) {
   const router = useRouter();
   const { 
     state, 
@@ -19,19 +29,18 @@ export function TryOnView() {
     removeClothingImage,
     setStatus,
     setResult,
-    setError,
-    incrementTrialCount,
-    canGenerate
+    setError
   } = useApp();
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
 
-  const { tryOn, subscription } = state;
-  const canGenerateNow = canGenerate();
+  const { tryOn } = state;
+  const canGenerate = subscription.status === 'SUBSCRIBED' || subscription.remainingTrials > 0;
+  const isSubscribed = subscription.status === 'SUBSCRIBED';
 
   const handleGenerate = async () => {
-    if (!canGenerateNow || !tryOn.personImage || !tryOn.clothingImage) return;
+    if (!canGenerate || !tryOn.personImage || !tryOn.clothingImage) return;
 
     setIsGenerating(true);
     setGenerationProgress(0);
@@ -63,12 +72,12 @@ export function TryOnView() {
       setGenerationProgress(100);
 
       if (!response.ok) {
-        throw new Error('Failed to generate try-on image');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate try-on image');
       }
 
       const data = await response.json();
       
-      incrementTrialCount();
       setResult(data.resultImage, data.generationId, data.category);
       
       setTimeout(() => {
@@ -82,22 +91,26 @@ export function TryOnView() {
     }
   };
 
-  const isDisabled = isGenerating || (subscription.status !== 'SUBSCRIBED' && subscription.remainingTrials <= 0);
+  const isDisabled = isGenerating || !canGenerate;
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header showTrials />
+    <div className="min-h-screen flex flex-col bg-stone-50 dark:bg-stone-900">
+      <Header 
+        showTrials 
+        remainingTrials={subscription.remainingTrials}
+        isSubscribed={isSubscribed}
+      />
       
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Virtual Try-On</h1>
-            <p className="mt-2 text-muted-foreground">
+      <main className="flex-1 container mx-auto px-6 lg:px-12 py-12">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-medium mb-3 text-stone-900 dark:text-stone-50">Virtual Try-On</h1>
+            <p className="text-stone-500 dark:text-stone-400 max-w-md mx-auto">
               Upload your photo and a clothing image to see how it looks on you
             </p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid gap-8 lg:grid-cols-2">
             <ImageUploadArea
               label="Your Photo"
               imagePreview={tryOn.personPreviewUrl}
@@ -115,51 +128,51 @@ export function TryOnView() {
             />
           </div>
 
-          <div className="mt-8 flex justify-center">
+          <div className="mt-10 flex justify-center">
             <Button
               size="lg"
               onClick={handleGenerate}
-              disabled={!canGenerateNow || isGenerating}
-              className="min-w-64"
+              disabled={!canGenerate || isGenerating}
+              className="h-14 px-12 text-base bg-stone-900 dark:bg-stone-100 text-stone-50 dark:text-stone-900 hover:bg-stone-800 dark:hover:bg-stone-200 disabled:opacity-50 rounded-none transition-all duration-300"
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-3 h-5 w-5 animate-spin" />
                   Generating... {generationProgress}%
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-5 w-5" />
+                  <Sparkles className="mr-3 h-5 w-5" />
                   Generate Preview
                 </>
               )}
             </Button>
           </div>
 
-          {subscription.status !== 'SUBSCRIBED' && subscription.remainingTrials <= 0 && (
-            <Card className="mt-6 border-yellow-200 bg-yellow-50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg text-yellow-800">No Trials Remaining</CardTitle>
-                <CardDescription className="text-yellow-700">
+          {!isSubscribed && subscription.remainingTrials <= 0 && (
+            <Card className="mt-8 max-w-lg mx-auto border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg text-amber-800 dark:text-amber-200">No Trials Remaining</CardTitle>
+                <CardDescription className="text-amber-700 dark:text-amber-300">
                   You have used all your free trials. Upgrade to continue trying on clothes.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Button asChild>
+                <Button asChild className="bg-amber-700 hover:bg-amber-800 text-white">
                   <a href="/pricing">Upgrade to Premium</a>
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          <Card className="mt-6">
-            <CardHeader className="pb-2">
+          <Card className="mt-8 max-w-2xl mx-auto border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-800/50">
+            <CardHeader className="pb-4">
               <div className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-muted-foreground" />
-                <CardTitle className="text-base">Tips for Best Results</CardTitle>
+                <Info className="h-4 w-4 text-stone-500" />
+                <CardTitle className="text-base text-stone-900 dark:text-stone-100">Tips for Best Results</CardTitle>
               </div>
             </CardHeader>
-            <CardContent className="text-sm text-muted-foreground space-y-2">
+            <CardContent className="text-sm text-stone-500 dark:text-stone-400 space-y-2">
               <ul className="list-disc pl-4 space-y-1">
                 <li>Use a clear full-body photo for best results</li>
                 <li>Any clothing image works - no special requirements</li>
@@ -168,10 +181,6 @@ export function TryOnView() {
               </ul>
             </CardContent>
           </Card>
-
-          <p className="mt-6 text-center text-xs text-muted-foreground">
-            This is a preview image for reference only. Not a guarantee of exact fit or size.
-          </p>
         </div>
       </main>
     </div>

@@ -64,7 +64,7 @@ export function ImageUploadArea({
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden border-stone-200 dark:border-stone-700 shadow-sm hover:shadow-md transition-shadow duration-300">
       <CardContent className="p-0">
         <input
           ref={inputRef}
@@ -76,7 +76,7 @@ export function ImageUploadArea({
         />
         
         {imagePreview ? (
-          <div className="relative aspect-[3/4] bg-muted">
+          <div className="relative aspect-[3/4] bg-stone-100 dark:bg-stone-800">
             <img
               src={imagePreview}
               alt={label}
@@ -85,7 +85,7 @@ export function ImageUploadArea({
             <Button
               variant="secondary"
               size="icon"
-              className="absolute top-2 right-2 h-8 w-8 rounded-full"
+              className="absolute top-3 right-3 h-8 w-8 rounded-full bg-white/90 dark:bg-stone-900/90 shadow-md hover:bg-white dark:hover:bg-stone-800"
               onClick={handleRemove}
               disabled={disabled}
             >
@@ -94,22 +94,22 @@ export function ImageUploadArea({
           </div>
         ) : (
           <div
-            className={`aspect-[3/4] flex flex-col items-center justify-center cursor-pointer transition-colors ${
+            className={`aspect-[3/4] flex flex-col items-center justify-center cursor-pointer transition-all duration-300 border-2 border-dashed ${
               disabled 
-                ? 'bg-muted/50 cursor-not-allowed' 
-                : 'bg-muted hover:bg-muted/80'
+                ? 'bg-stone-100 dark:bg-stone-800 border-stone-200 dark:border-stone-700 cursor-not-allowed' 
+                : 'bg-stone-50 dark:bg-stone-900 border-stone-200 dark:border-stone-700 hover:border-stone-400 dark:hover:border-stone-500 hover:bg-stone-100 dark:hover:bg-stone-800'
             }`}
             onClick={handleClick}
           >
-            <div className={`rounded-full p-4 mb-4 ${disabled ? 'bg-muted' : 'bg-primary/10'}`}>
+            <div className={`rounded-full p-5 mb-4 ${disabled ? 'bg-stone-200 dark:bg-stone-700' : 'bg-stone-900 dark:bg-stone-100'}`}>
               {disabled ? (
-                <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                <ImageIcon className="h-8 w-8 text-stone-400" />
               ) : (
-                <Upload className="h-8 w-8 text-primary" />
+                <Upload className="h-8 w-8 text-stone-50 dark:text-stone-900" />
               )}
             </div>
-            <p className="text-sm font-medium">{label}</p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-sm font-medium text-stone-700 dark:text-stone-300">{label}</p>
+            <p className="text-xs text-stone-500 dark:text-stone-400 mt-1">
               {disabled ? 'Please wait' : 'Click to upload'}
             </p>
           </div>

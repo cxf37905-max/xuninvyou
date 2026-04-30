@@ -1,0 +1,1 @@
+ALTER TABLE "subscriptions" ADD COLUMN "remaining_trials" integer DEFAULT 3 NOT NULL;

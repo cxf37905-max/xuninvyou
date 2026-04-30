@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/auth-options';
+import { db } from '@/db';
+import { subscriptions } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 const ARK_API_URL = 'https://ark.cn-beijing.volces.com/api/v3/images/generations';
 const ARK_MODEL = 'doubao-seedream-5-0-260128';
@@ -56,8 +61,47 @@ async function handleArkError(response: Response): Promise<never> {
   }
 }
 
+async function checkAndUseTrial(userId: number) {
+  const subscription = await db.query.subscriptions.findFirst({
+    where: eq(subscriptions.userId, userId),
+  });
+
+  if (!subscription) {
+    throw new ApiError(403, 'Subscription not found', 'NO_SUBSCRIPTION');
+  }
+
+  if (subscription.status !== 'SUBSCRIBED') {
+    if (subscription.remainingTrials <= 0) {
+      throw new ApiError(403, '试用次数已用完，请购买套餐', 'NO_TRIALS');
+    }
+
+    await db
+      .update(subscriptions)
+      .set({
+        remainingTrials: subscription.remainingTrials - 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(subscriptions.userId, userId));
+  }
+
+  return subscription;
+}
+
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: '请先登录', code: 'UNAUTHORIZED' },
+        { status: 401 }
+      );
+    }
+
+    const userId = parseInt(session.user.id);
+
+    await checkAndUseTrial(userId);
+
     const apiKey = process.env.ARK_API_KEY;
 
     if (!apiKey) {

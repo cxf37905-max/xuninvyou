@@ -46,6 +46,7 @@ export const subscriptions = pgTable('subscriptions', {
   userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   plan: varchar('plan', { length: 50 }).notNull().default('free'),
   status: varchar('status', { length: 50 }).notNull().default('FREE_TRIAL'),
+  remainingTrials: integer('remaining_trials').notNull().default(3),
   startDate: timestamp('start_date').defaultNow().notNull(),
   endDate: timestamp('end_date'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

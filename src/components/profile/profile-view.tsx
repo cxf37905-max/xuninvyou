@@ -2,29 +2,36 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { Header } from '@/components/layouts/header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { useApp } from '@/contexts/AppContext';
 import { User, Crown, CreditCard, Sparkles, LogOut } from 'lucide-react';
 
-export function ProfileView() {
+interface SubscriptionData {
+  status: 'FREE_TRIAL' | 'TRIALS_EXHAUSTED' | 'SUBSCRIBED';
+  plan: 'free' | 'monthly' | 'yearly';
+  remainingTrials: number;
+}
+
+interface ProfileViewProps {
+  subscription: SubscriptionData;
+}
+
+export function ProfileView({ subscription }: ProfileViewProps) {
   const router = useRouter();
-  const { state, setUser, logout } = useApp();
-  const { user, subscription } = state;
+  const { data: session } = useSession();
   
-  const [name, setName] = useState(user.name || '');
-  const [email, setEmail] = useState(user.email || '');
+  const [name, setName] = useState(session?.user?.name || '');
+  const [email, setEmail] = useState(session?.user?.email || '');
 
   const handleSave = () => {
-    setUser({ name, email });
     alert('Profile updated successfully!');
   };
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: '/' });
   };
 
   const isSubscribed = subscription.status === 'SUBSCRIBED';
@@ -32,7 +39,7 @@ export function ProfileView() {
     free: 'Free',
     monthly: 'Monthly',
     yearly: 'Yearly',
-  }[subscription.plan || 'free'];
+  }[subscription.plan];
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -74,6 +81,7 @@ export function ProfileView() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com"
                     type="email"
+                    disabled
                   />
                 </div>
               </div>
@@ -88,51 +96,30 @@ export function ProfileView() {
                 Subscription
               </CardTitle>
               <CardDescription>
-                Manage your subscription plan
+                Your current plan and usage
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/50">
+              <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
                 <div className="flex items-center gap-3">
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-full ${isSubscribed ? 'bg-yellow-100' : 'bg-muted'}`}>
-                    <Crown className={`h-5 w-5 ${isSubscribed ? 'text-yellow-600' : 'text-muted-foreground'}`} />
+                  <div className={`p-2 rounded-full ${isSubscribed ? 'bg-yellow-100' : 'bg-blue-100'}`}>
+                    {isSubscribed ? (
+                      <Crown className="h-5 w-5 text-yellow-600" />
+                    ) : (
+                      <Sparkles className="h-5 w-5 text-blue-600" />
+                    )}
                   </div>
                   <div>
-                    <p className="font-medium">Current Plan: {planName}</p>
+                    <p className="font-medium">{planName} Plan</p>
                     <p className="text-sm text-muted-foreground">
                       {isSubscribed ? 'Unlimited try-ons' : `${subscription.remainingTrials} trials remaining`}
                     </p>
                   </div>
                 </div>
+                <Button variant="outline" asChild>
+                  <a href="/pricing">Change Plan</a>
+                </Button>
               </div>
-
-              {!isSubscribed && (
-                <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="h-4 w-4 text-blue-600" />
-                    <span className="font-medium text-blue-800">Upgrade to Premium</span>
-                  </div>
-                  <p className="text-sm text-blue-700 mb-3">
-                    Get unlimited try-ons, priority processing, and priority support.
-                  </p>
-                  <Button size="sm" asChild>
-                    <a href="/pricing">View Plans</a>
-                  </Button>
-                </div>
-              )}
-
-              {isSubscribed && (
-                <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-                  <p className="text-sm text-green-800">
-                    <strong>Premium Member</strong> - You have unlimited access to all features!
-                  </p>
-                </div>
-              )}
-
-              <Button variant="outline" className="w-full">
-                <CreditCard className="mr-2 h-4 w-4" />
-                Manage Subscription
-              </Button>
             </CardContent>
           </Card>
 
@@ -146,7 +133,7 @@ export function ProfileView() {
             <CardContent>
               <Button variant="destructive" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
-                Log Out
+                Sign Out
               </Button>
             </CardContent>
           </Card>

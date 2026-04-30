@@ -15,6 +15,13 @@
       "when": 1777019166205,
       "tag": "0001_fixed_luke_cage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777187790718,
+      "tag": "0002_lucky_annihilus",
+      "breakpoints": true
     }
   ]
 }

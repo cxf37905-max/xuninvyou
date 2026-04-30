@@ -7,7 +7,17 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useApp } from '@/contexts/AppContext';
 import { Download, RefreshCw, Shirt, ArrowRight, AlertCircle } from 'lucide-react';
 
-export function ResultView() {
+interface SubscriptionData {
+  status: 'FREE_TRIAL' | 'TRIALS_EXHAUSTED' | 'SUBSCRIBED';
+  plan: 'free' | 'monthly' | 'yearly';
+  remainingTrials: number;
+}
+
+interface ResultViewProps {
+  subscription: SubscriptionData;
+}
+
+export function ResultView({ subscription }: ResultViewProps) {
   const router = useRouter();
   const { state, clearResult } = useApp();
   const { tryOn } = state;
@@ -32,10 +42,12 @@ export function ResultView() {
     router.push('/try-on');
   };
 
+  const isSubscribed = subscription.status === 'SUBSCRIBED';
+
   if (!tryOn.resultImage) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Header showTrials />
+        <Header showTrials remainingTrials={subscription.remainingTrials} isSubscribed={isSubscribed} />
         <main className="flex-1 flex items-center justify-center">
           <Card className="max-w-md">
             <CardContent className="pt-6 text-center">
@@ -62,7 +74,7 @@ export function ResultView() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header showTrials />
+      <Header showTrials remainingTrials={subscription.remainingTrials} isSubscribed={isSubscribed} />
       
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-3xl mx-auto">
@@ -81,50 +93,24 @@ export function ResultView() {
             />
           </div>
 
-          <div className="mt-6 flex flex-wrap justify-center gap-4">
-            <Button size="lg" onClick={handleDownload}>
-              <Download className="mr-2 h-5 w-5" />
-              Download
+          <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center">
+            <Button onClick={handleDownload} className="flex-1 sm:flex-none">
+              <Download className="mr-2 h-4 w-4" />
+              Download Image
             </Button>
-            
-            <Button size="lg" variant="outline" onClick={handleRegenerate}>
-              <RefreshCw className="mr-2 h-5 w-5" />
-              Regenerate
-            </Button>
-            
-            <Button size="lg" variant="secondary" onClick={handleTryAnother}>
-              <Shirt className="mr-2 h-5 w-5" />
+            <Button variant="outline" onClick={handleRegenerate} className="flex-1 sm:flex-none">
+              <RefreshCw className="mr-2 h-4 w-4" />
               Try Another
-              <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>
 
-          <Card className="mt-8">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Shirt className="h-5 w-5 text-muted-foreground" />
-                  <span className="font-medium">Category Detected:</span>
-                  <span className="text-muted-foreground">{categoryLabel}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="mt-4 border-yellow-200 bg-yellow-50">
-            <CardContent className="pt-4">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-yellow-800">
-                  <p className="font-medium mb-1">Preview Only - Not Exact Fit</p>
-                  <p className="text-yellow-700">
-                    This is a preview image for reference only. Not a guarantee of exact fit, 
-                    size, or real-world appearance. Results may vary based on input image quality.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mt-8 flex items-center justify-center">
+            <Button variant="link" onClick={handleTryAnother}>
+              <Shirt className="mr-2 h-4 w-4" />
+              Upload More Clothes
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </main>
     </div>
